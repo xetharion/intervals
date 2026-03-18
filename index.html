@@ -37,12 +37,11 @@
             background-image:
                 radial-gradient(circle at 15% 20%, rgba(99,102,241,.18) 0%, transparent 45%),
                 radial-gradient(circle at 85% 80%, rgba(139,92,246,.12) 0%, transparent 45%);
-            min-height: 100dvh;          /* dynamic viewport height — hides mobile chrome */
+            min-height: 100dvh;
             color: var(--text);
             overflow-x: hidden;
             overflow-y: auto;
 
-            /* safe-area-aware padding */
             padding:
                 calc(var(--sat) + 1rem)
                 calc(var(--sar) + 1rem)
@@ -115,6 +114,48 @@
         .score-badge.ok  { background: rgba(34,197,94,.1);  border-color: rgba(34,197,94,.25);  color: #4ade80; }
         .score-badge.err { background: rgba(239,68,68,.1);  border-color: rgba(239,68,68,.25);  color: #f87171; }
 
+        /* ── Mode toggle ── */
+        .mode-toggle {
+            display: flex;
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 3px;
+        }
+
+        .mode-pill {
+            position: absolute;
+            top: 3px; bottom: 3px; left: 3px;
+            width: calc(50% - 3px);
+            border-radius: 999px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            box-shadow: 0 2px 8px rgba(79,70,229,.4);
+            transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+        .mode-pill.note { left: 50%; }
+
+        .mode-btn {
+            flex: 1;
+            padding: 0.32rem 0.8rem;
+            border: none;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--muted);
+            background: transparent;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: color .28s;
+            white-space: nowrap;
+            position: relative; /* above pill */
+        }
+
+        .mode-btn.active { color: #fff; }
+
         /* ── Card ── */
         .card {
             background: var(--surface);
@@ -142,6 +183,7 @@
             color: var(--muted);
             margin-bottom: clamp(1.2rem, 4vw, 1.75rem);
             line-height: 1.6;
+            min-height: 2.95rem;
         }
         .question-text strong { color: var(--text); font-weight: 700; }
 
@@ -178,12 +220,17 @@
             background: linear-gradient(135deg, #3b0764, #6d28d9, #a855f7);
             box-shadow: 0 6px 24px rgba(168,85,247,.45);
         }
+        .note-chip.hidden-note {
+            font-size: clamp(1.8rem, 6vw, 2.2rem);
+            color: rgba(255,255,255,.35);
+        }
 
         .note-sublabel {
             font-size: 0.58rem; font-weight: 500;
             color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
         }
 
+        /* ── Interval badge in connector (note mode) ── */
         .interval-connector {
             display: flex; flex-direction: column; align-items: center;
             gap: 0.3rem; padding-bottom: 1.4rem;
@@ -196,6 +243,14 @@
             width: 8px; height: 8px; border-radius: 50%;
             background: linear-gradient(135deg, #6366f1, #a855f7);
             box-shadow: 0 0 8px rgba(99,102,241,.6);
+        }
+        .connector-label {
+            font-size: 0.6rem; font-weight: 700;
+            color: var(--accent);
+            text-align: center;
+            max-width: 72px;
+            line-height: 1.3;
+            display: none;
         }
 
         /* ── Feedback ── */
@@ -222,7 +277,6 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-            /* tall touch target — comfortable for thumbs */
             min-height: 56px;
             padding: 0.9rem 0.65rem;
             color: var(--text);
@@ -231,14 +285,12 @@
             font-weight: 500;
             cursor: pointer;
             line-height: 1.3; text-align: center;
-            /* prevent double-tap zoom on mobile */
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             transition: background .12s, border-color .12s, transform .1s, box-shadow .12s;
             user-select: none;
         }
 
-        /* hover only on pointer devices to avoid sticky states on touch */
         @media (hover: hover) {
             .answer-btn:hover:not(:disabled) {
                 background: var(--surfaceH);
@@ -328,6 +380,7 @@
         @media (max-width: 360px) {
             .logo-text p { display: none; }
             .card { padding: 1.1rem 1rem 1rem; }
+            .mode-btn { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
         }
 
         /* ── Landscape on phone ── */
@@ -358,13 +411,16 @@
         </div>
     </header>
 
+    <div class="mode-toggle">
+        <div class="mode-pill" id="mode-pill"></div>
+        <button class="mode-btn active" id="mode-btn-interval">Rozpoznaj interwał</button>
+        <button class="mode-btn"        id="mode-btn-note">Znajdź dźwięk</button>
+    </div>
+
     <div class="card">
         <div class="question-label">Pytanie</div>
 
-        <p class="question-text">
-            Czym jest dźwięk <strong id="q-to"></strong>
-            w stosunku do dźwięku <strong id="q-from"></strong>?
-        </p>
+        <p class="question-text" id="question-text"></p>
 
         <div class="notes-row">
             <div class="note-wrapper">
@@ -375,10 +431,11 @@
                 <div class="connector-line"></div>
                 <div class="connector-dot"></div>
                 <div class="connector-line"></div>
+                <div class="connector-label" id="connector-label"></div>
             </div>
             <div class="note-wrapper">
                 <div class="note-chip to" id="chip-to"></div>
-                <span class="note-sublabel">?</span>
+                <span class="note-sublabel" id="sublabel-to">?</span>
             </div>
         </div>
 
@@ -432,15 +489,18 @@
         { s:11, name:'Septyma wielka' },
     ];
 
-    let score  = loadScore();
-    let streak = 0, current = null, locked = false;
+    let scores  = loadScores();
+    let streak  = 0, current = null, locked = false;
+    let quizMode = 'interval'; // 'interval' | 'note'
 
-    function loadScore() {
-        try { const r = localStorage.getItem('interway_muzyczne_v1'); if (r) return JSON.parse(r); }
+    function loadScores() {
+        try { const r = localStorage.getItem('interway_muzyczne_v2'); if (r) return JSON.parse(r); }
         catch(_) {}
-        return { ok:0, err:0 };
+        return { interval: { ok:0, err:0 }, note: { ok:0, err:0 } };
     }
-    function saveScore() { localStorage.setItem('interway_muzyczne_v1', JSON.stringify(score)); }
+    function saveScores() { localStorage.setItem('interway_muzyczne_v2', JSON.stringify(scores)); }
+
+    function score() { return scores[quizMode]; }
 
     function pick(n) { return Math.floor(Math.random() * n); }
 
@@ -449,28 +509,54 @@
         let i2; do { i2 = pick(12); } while (i2 === i1);
         const semitones = (i2 - i1 + 12) % 12;
         const correct   = INTERVALS.find(iv => iv.s === semitones);
-        const wrongs    = INTERVALS.filter(iv => iv.s !== semitones).sort(() => Math.random()-.5).slice(0,3);
-        const answers   = [correct, ...wrongs].sort(() => Math.random()-.5);
-        return { from: NOTES[i1], to: NOTES[i2], semitones, correct, answers };
+
+        if (quizMode === 'interval') {
+            const wrongs  = INTERVALS.filter(iv => iv.s !== semitones).sort(() => Math.random()-.5).slice(0,3);
+            const answers = [correct, ...wrongs].sort(() => Math.random()-.5);
+            return { mode:'interval', from: NOTES[i1], to: NOTES[i2], semitones, correct, answers };
+        } else {
+            // note mode: show from + interval name, user picks the target note
+            const wrongNotes = NOTES.filter((_, idx) => idx !== i2).sort(() => Math.random()-.5).slice(0,3);
+            const answers    = [NOTES[i2], ...wrongNotes].sort(() => Math.random()-.5);
+            return { mode:'note', from: NOTES[i1], to: NOTES[i2], semitones, correct, answers };
+        }
     }
 
     function showQuestion(q) {
         locked = false; current = q;
-        document.getElementById('q-from').textContent    = q.from;
-        document.getElementById('q-to').textContent      = q.to;
+
         document.getElementById('chip-from').textContent = q.from;
-        document.getElementById('chip-to').textContent   = q.to;
+        const connLabel = document.getElementById('connector-label');
+        const sublabelTo = document.getElementById('sublabel-to');
+        const questionText = document.getElementById('question-text');
+
+        if (q.mode === 'interval') {
+            document.getElementById('chip-to').textContent = q.to;
+            document.getElementById('chip-to').classList.remove('hidden-note');
+            connLabel.style.display = 'none';
+            sublabelTo.textContent  = '?';
+            questionText.innerHTML  =
+                `Czym jest dźwięk <strong>${q.to}</strong> w stosunku do dźwięku <strong>${q.from}</strong>?`;
+        } else {
+            document.getElementById('chip-to').textContent = '?';
+            document.getElementById('chip-to').classList.add('hidden-note');
+            connLabel.style.display = 'block';
+            connLabel.textContent   = q.correct.name;
+            sublabelTo.textContent  = '?';
+            questionText.innerHTML  =
+                `Jaki dźwięk leży o interwał <strong>${q.correct.name}</strong> powyżej dźwięku <strong>${q.from}</strong>?`;
+        }
 
         const fb = document.getElementById('feedback');
         fb.textContent = ''; fb.className = 'feedback';
 
         const grid = document.getElementById('answers-grid');
         grid.innerHTML = '';
-        q.answers.forEach(iv => {
+        q.answers.forEach(answer => {
             const btn = document.createElement('button');
-            btn.className = 'answer-btn';
-            btn.textContent = iv.name;
-            btn.addEventListener('click', () => handleAnswer(iv, btn));
+            btn.className   = 'answer-btn';
+            btn.textContent = (q.mode === 'interval') ? answer.name : answer;
+            btn.addEventListener('click', () => handleAnswer(answer, btn));
             grid.appendChild(btn);
         });
     }
@@ -478,52 +564,100 @@
     function handleAnswer(selected, clickedBtn) {
         if (locked) return;
         locked = true;
-        const isOk = selected.s === current.correct.s;
 
-        if (isOk) { score.ok++;  streak++; }
-        else       { score.err++; streak = 0; }
-        saveScore(); updateUI();
-
-        document.querySelectorAll('.answer-btn').forEach(btn => {
-            btn.disabled = true;
-            if      (btn.textContent === current.correct.name)  btn.classList.add('correct');
-            else if (btn === clickedBtn && !isOk)               btn.classList.add('wrong-pick');
-            else                                                btn.classList.add('dim');
-        });
-
-        const fb = document.getElementById('feedback');
         const pt = current.semitones === 1 ? 'półton' : 'półtony/półtonów';
-        if (isOk) {
-            fb.textContent = `✓ Świetnie! ${current.from} → ${current.to} = ${current.correct.name} (${current.semitones} ${pt})`;
-            fb.className = 'feedback ok';
+        let isOk;
+
+        if (current.mode === 'interval') {
+            isOk = selected.s === current.correct.s;
+
+            if (isOk) { score().ok++;  streak++; }
+            else       { score().err++; streak = 0; }
+            saveScores(); updateUI();
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = true;
+                if      (btn.textContent === current.correct.name)  btn.classList.add('correct');
+                else if (btn === clickedBtn && !isOk)               btn.classList.add('wrong-pick');
+                else                                                btn.classList.add('dim');
+            });
+
+            const fb = document.getElementById('feedback');
+            if (isOk) {
+                fb.textContent = `✓ Świetnie! ${current.from} → ${current.to} = ${current.correct.name} (${current.semitones} ${pt})`;
+                fb.className = 'feedback ok';
+            } else {
+                fb.textContent = `✗ Błąd! Prawidłowo: ${current.correct.name} (${current.semitones} ${pt})`;
+                fb.className = 'feedback err';
+            }
+
         } else {
-            fb.textContent = `✗ Błąd! Prawidłowo: ${current.correct.name} (${current.semitones} ${pt})`;
-            fb.className = 'feedback err';
+            isOk = selected === current.to;
+
+            if (isOk) { score().ok++;  streak++; }
+            else       { score().err++; streak = 0; }
+            saveScores(); updateUI();
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = true;
+                if      (btn.textContent === current.to)       btn.classList.add('correct');
+                else if (btn === clickedBtn && !isOk)          btn.classList.add('wrong-pick');
+                else                                           btn.classList.add('dim');
+            });
+
+            // reveal the answer in the chip
+            const chipTo = document.getElementById('chip-to');
+            chipTo.textContent = current.to;
+            chipTo.classList.remove('hidden-note');
+
+            const fb = document.getElementById('feedback');
+            if (isOk) {
+                fb.textContent = `✓ Świetnie! ${current.from} + ${current.correct.name} = ${current.to} (${current.semitones} ${pt})`;
+                fb.className = 'feedback ok';
+            } else {
+                fb.textContent = `✗ Błąd! Prawidłowo: ${current.to} (${current.correct.name}, ${current.semitones} ${pt})`;
+                fb.className = 'feedback err';
+            }
         }
 
         setTimeout(() => showQuestion(generateQuestion()), 2000);
     }
 
+    function setMode(mode) {
+        if (mode === quizMode) return;
+        quizMode = mode;
+        streak = 0;
+        document.getElementById('mode-btn-interval').classList.toggle('active', mode === 'interval');
+        document.getElementById('mode-btn-note').classList.toggle('active',     mode === 'note');
+        document.getElementById('mode-pill').classList.toggle('note',           mode === 'note');
+        updateUI();
+        showQuestion(generateQuestion());
+    }
+
     function updateUI() {
-        document.getElementById('score-ok').textContent  = score.ok;
-        document.getElementById('score-err').textContent = score.err;
+        document.getElementById('score-ok').textContent   = score().ok;
+        document.getElementById('score-err').textContent  = score().err;
         document.getElementById('streak-val').textContent = streak;
-        const total = score.ok + score.err;
+        const total = score().ok + score().err;
         document.getElementById('total-count').textContent = total;
         if (total > 0) {
-            const pct = Math.round(score.ok / total * 100);
-            document.getElementById('acc-text').textContent = pct + '%';
-            document.getElementById('acc-fill').style.width = pct + '%';
+            const pct = Math.round(score().ok / total * 100);
+            document.getElementById('acc-text').textContent  = pct + '%';
+            document.getElementById('acc-fill').style.width  = pct + '%';
         } else {
-            document.getElementById('acc-text').textContent = '—';
-            document.getElementById('acc-fill').style.width = '0%';
+            document.getElementById('acc-text').textContent  = '—';
+            document.getElementById('acc-fill').style.width  = '0%';
         }
     }
 
+    document.getElementById('mode-btn-interval').addEventListener('click', () => setMode('interval'));
+    document.getElementById('mode-btn-note').addEventListener('click',     () => setMode('note'));
+
     document.getElementById('reset-btn').addEventListener('click', () => {
         if (!confirm('Czy na pewno chcesz zresetować wszystkie wyniki?')) return;
-        score = { ok:0, err:0 }; streak = 0;
-        saveScore(); updateUI();
+        scores = { interval: { ok:0, err:0 }, note: { ok:0, err:0 } };
+        streak = 0;
+        saveScores(); updateUI();
     });
 
     updateUI();
