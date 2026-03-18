@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#080818">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Interwały">
+    <title>Interwały Muzyczne</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:      #080818;
+            --surface: rgba(255,255,255,0.04);
+            --surfaceH:rgba(255,255,255,0.08);
+            --border:  rgba(255,255,255,0.09);
+            --accent:  #818cf8;
+            --text:    #f1f5f9;
+            --muted:   #94a3b8;
+
+            /* Safe-area padding */
+            --sat: env(safe-area-inset-top,    0px);
+            --sar: env(safe-area-inset-right,  0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left,   0px);
+        }
+
+        html { height: 100%; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            background-image:
+                radial-gradient(circle at 15% 20%, rgba(99,102,241,.18) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(139,92,246,.12) 0%, transparent 45%);
+            min-height: 100dvh;          /* dynamic viewport height — hides mobile chrome */
+            color: var(--text);
+            overflow-x: hidden;
+            overflow-y: auto;
+
+            /* safe-area-aware padding */
+            padding:
+                calc(var(--sat) + 1rem)
+                calc(var(--sar) + 1rem)
+                calc(var(--sab) + 1rem)
+                calc(var(--sal) + 1rem);
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* faint staff lines */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent, transparent 48px,
+                rgba(255,255,255,.015) 48px,
+                rgba(255,255,255,.015) 50px
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Layout ── */
+        .app {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.65rem, 2.5vw, 1rem);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Header ── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo { display: flex; align-items: center; gap: 0.55rem; }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(79,70,229,.4);
+            flex-shrink: 0;
+        }
+
+        .logo-text h1 { font-size: clamp(0.85rem, 4vw, 1rem); font-weight: 700; line-height: 1.2; }
+        .logo-text p  { font-size: 0.62rem; color: var(--muted); }
+
+        .score-board { display: flex; gap: 0.45rem; }
+
+        .score-badge {
+            display: flex; align-items: center; gap: 0.3rem;
+            padding: 0.28rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.82rem; font-weight: 700;
+            border: 1px solid transparent;
+        }
+        .score-badge.ok  { background: rgba(34,197,94,.1);  border-color: rgba(34,197,94,.25);  color: #4ade80; }
+        .score-badge.err { background: rgba(239,68,68,.1);  border-color: rgba(239,68,68,.25);  color: #f87171; }
+
+        /* ── Card ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: clamp(1.25rem, 5vw, 2rem) clamp(1.1rem, 5vw, 2rem) clamp(1rem, 4vw, 1.5rem);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .question-label {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.62rem; font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase; letter-spacing: 0.12em;
+            margin-bottom: clamp(0.9rem, 3vw, 1.25rem);
+        }
+        .question-label::before, .question-label::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
+        }
+
+        .question-text {
+            text-align: center;
+            font-size: clamp(0.82rem, 3.5vw, 0.92rem);
+            color: var(--muted);
+            margin-bottom: clamp(1.2rem, 4vw, 1.75rem);
+            line-height: 1.6;
+        }
+        .question-text strong { color: var(--text); font-weight: 700; }
+
+        /* ── Notes display ── */
+        .notes-row {
+            display: flex;
+            align-items: center; justify-content: center;
+            gap: clamp(0.8rem, 3vw, 1.25rem);
+            margin-bottom: clamp(1rem, 3.5vw, 1.75rem);
+        }
+
+        .note-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+
+        .note-chip {
+            width:  clamp(72px, 20vw, 88px);
+            height: clamp(72px, 20vw, 88px);
+            border-radius: clamp(16px, 4vw, 20px);
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(1.5rem, 5.5vw, 1.9rem);
+            font-weight: 800;
+            position: relative; overflow: hidden;
+        }
+        .note-chip::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(160deg, rgba(255,255,255,.12) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .note-chip.from {
+            background: linear-gradient(135deg, #1e1b4b, #312e81, #4338ca);
+            box-shadow: 0 6px 24px rgba(67,56,202,.45);
+        }
+        .note-chip.to {
+            background: linear-gradient(135deg, #3b0764, #6d28d9, #a855f7);
+            box-shadow: 0 6px 24px rgba(168,85,247,.45);
+        }
+
+        .note-sublabel {
+            font-size: 0.58rem; font-weight: 500;
+            color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+        }
+
+        .interval-connector {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 0.3rem; padding-bottom: 1.4rem;
+        }
+        .connector-line {
+            width: 1px; height: 16px;
+            background: linear-gradient(to bottom, rgba(99,102,241,.4), rgba(168,85,247,.4));
+        }
+        .connector-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            box-shadow: 0 0 8px rgba(99,102,241,.6);
+        }
+
+        /* ── Feedback ── */
+        .feedback {
+            min-height: 2.4rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 12px;
+            font-size: clamp(0.75rem, 3vw, 0.82rem);
+            font-weight: 500; text-align: center; line-height: 1.4;
+            padding: 0.3rem 0.5rem;
+            transition: all 0.25s ease;
+        }
+        .feedback.ok  { background: rgba(34,197,94,.08);  color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
+        .feedback.err { background: rgba(239,68,68,.08);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+
+        /* ── Answers ── */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.5rem, 2vw, 0.65rem);
+        }
+
+        .answer-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            /* tall touch target — comfortable for thumbs */
+            min-height: 56px;
+            padding: 0.9rem 0.65rem;
+            color: var(--text);
+            font-family: inherit;
+            font-size: clamp(0.8rem, 3.2vw, 0.88rem);
+            font-weight: 500;
+            cursor: pointer;
+            line-height: 1.3; text-align: center;
+            /* prevent double-tap zoom on mobile */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: background .12s, border-color .12s, transform .1s, box-shadow .12s;
+            user-select: none;
+        }
+
+        /* hover only on pointer devices to avoid sticky states on touch */
+        @media (hover: hover) {
+            .answer-btn:hover:not(:disabled) {
+                background: var(--surfaceH);
+                border-color: rgba(129,140,248,.35);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px rgba(0,0,0,.25);
+            }
+        }
+
+        .answer-btn:active:not(:disabled) { transform: scale(0.97); }
+        .answer-btn:disabled { cursor: default; }
+
+        .answer-btn.correct   { background: rgba(34,197,94,.14);  border-color: rgba(34,197,94,.5);  color: #4ade80; }
+        .answer-btn.wrong-pick{ background: rgba(239,68,68,.14);  border-color: rgba(239,68,68,.5);  color: #f87171; }
+        .answer-btn.dim       { opacity: .35; }
+
+        /* ── Stats bar ── */
+        .stats-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 0.8rem 1.1rem;
+            display: grid;
+            grid-template-columns: auto 1px 1fr 1px auto;
+            align-items: center;
+            gap: clamp(0.6rem, 2.5vw, 1rem);
+        }
+
+        .stat { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+        .stat-val { font-size: clamp(1rem, 4vw, 1.15rem); font-weight: 800; line-height: 1; }
+        .stat-lbl { font-size: 0.58rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+        .stat-divider { height: 30px; background: var(--border); }
+
+        .accuracy-section { display: flex; flex-direction: column; gap: 0.4rem; }
+        .accuracy-header   { display: flex; justify-content: space-between; align-items: baseline; }
+        .accuracy-label    { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; }
+        .accuracy-value    { font-size: 0.75rem; font-weight: 700; }
+
+        .progress-track {
+            height: 5px; background: rgba(255,255,255,.07);
+            border-radius: 3px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4f46e5, #7c3aed, #a855f7);
+            border-radius: 3px;
+            transition: width .5s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── Footer ── */
+        footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 0.15rem;
+            flex-wrap: wrap; gap: 0.4rem;
+        }
+
+        .footer-info { font-size: 0.65rem; color: var(--muted); }
+        .footer-info strong { color: var(--text); }
+
+        .reset-btn {
+            background: none; border: none;
+            color: var(--muted); font-family: inherit;
+            font-size: 0.68rem; cursor: pointer;
+            padding: 0.3rem 0.1rem;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: color .15s;
+        }
+        .reset-btn:active { color: #f87171; }
+        @media (hover: hover) { .reset-btn:hover { color: #f87171; } }
+
+        /* ── Animations ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pop {
+            0%, 100% { transform: scale(1); }
+            40%       { transform: scale(1.06); }
+        }
+
+        .card { animation: fadeUp .3s ease; }
+        .note-chip      { animation: pop 4s ease-in-out infinite; }
+        .note-chip.to   { animation-delay: .5s; }
+
+        /* ── Very small phones (≤ 360px) ── */
+        @media (max-width: 360px) {
+            .logo-text p { display: none; }
+            .card { padding: 1.1rem 1rem 1rem; }
+        }
+
+        /* ── Landscape on phone ── */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .notes-row { margin-bottom: 0.75rem; }
+            .question-label { margin-bottom: 0.6rem; }
+            .question-text  { margin-bottom: 0.75rem; }
+            .note-chip { width: 58px; height: 58px; font-size: 1.3rem; border-radius: 13px; }
+            .interval-connector { padding-bottom: 0.8rem; }
+            .answer-btn { min-height: 46px; padding: 0.6rem 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon">🎵</div>
+            <div class="logo-text">
+                <h1>Interwały Muzyczne</h1>
+                <p>Nauka odległości dźwięków</p>
+            </div>
+        </div>
+        <div class="score-board">
+            <div class="score-badge ok">✓ <span id="score-ok">0</span></div>
+            <div class="score-badge err">✗ <span id="score-err">0</span></div>
+        </div>
+    </header>
+
+    <div class="card">
+        <div class="question-label">Pytanie</div>
+
+        <p class="question-text">
+            Czym jest dźwięk <strong id="q-to"></strong>
+            w stosunku do dźwięku <strong id="q-from"></strong>?
+        </p>
+
+        <div class="notes-row">
+            <div class="note-wrapper">
+                <div class="note-chip from" id="chip-from"></div>
+                <span class="note-sublabel">Pryma</span>
+            </div>
+            <div class="interval-connector">
+                <div class="connector-line"></div>
+                <div class="connector-dot"></div>
+                <div class="connector-line"></div>
+            </div>
+            <div class="note-wrapper">
+                <div class="note-chip to" id="chip-to"></div>
+                <span class="note-sublabel">?</span>
+            </div>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+    </div>
+
+    <div class="answers-grid" id="answers-grid"></div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="stat-val" id="total-count">0</span>
+            <span class="stat-lbl">Pytań</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="accuracy-section">
+            <div class="accuracy-header">
+                <span class="accuracy-label">Skuteczność</span>
+                <span class="accuracy-value" id="acc-text">—</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="acc-fill" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <span class="stat-val" id="streak-val">0</span>
+            <span class="stat-lbl">Seria 🔥</span>
+        </div>
+    </div>
+
+    <footer>
+        <span class="footer-info">Interwały: <strong>11</strong></span>
+        <button class="reset-btn" id="reset-btn">Resetuj wyniki</button>
+    </footer>
+
+</div>
+<script>
+    const NOTES = ['C','Cis','D','Dis','E','F','Fis','G','Gis','A','Ais','B'];
+
+    const INTERVALS = [
+        { s:1,  name:'Sekunda mała'   },
+        { s:2,  name:'Sekunda wielka' },
+        { s:3,  name:'Tercja mała'    },
+        { s:4,  name:'Tercja wielka'  },
+        { s:5,  name:'Kwarta czysta'  },
+        { s:6,  name:'Tryton'         },
+        { s:7,  name:'Kwinta czysta'  },
+        { s:8,  name:'Seksta mała'    },
+        { s:9,  name:'Seksta wielka'  },
+        { s:10, name:'Septyma mała'   },
+        { s:11, name:'Septyma wielka' },
+    ];
+
+    let score  = loadScore();
+    let streak = 0, current = null, locked = false;
+
+    function loadScore() {
+        try { const r = localStorage.getItem('interway_muzyczne_v1'); if (r) return JSON.parse(r); }
+        catch(_) {}
+        return { ok:0, err:0 };
+    }
+    function saveScore() { localStorage.setItem('interway_muzyczne_v1', JSON.stringify(score)); }
+
+    function pick(n) { return Math.floor(Math.random() * n); }
+
+    function generateQuestion() {
+        const i1 = pick(12);
+        let i2; do { i2 = pick(12); } while (i2 === i1);
+        const semitones = (i2 - i1 + 12) % 12;
+        const correct   = INTERVALS.find(iv => iv.s === semitones);
+        const wrongs    = INTERVALS.filter(iv => iv.s !== semitones).sort(() => Math.random()-.5).slice(0,3);
+        const answers   = [correct, ...wrongs].sort(() => Math.random()-.5);
+        return { from: NOTES[i1], to: NOTES[i2], semitones, correct, answers };
+    }
+
+    function showQuestion(q) {
+        locked = false; current = q;
+        document.getElementById('q-from').textContent    = q.from;
+        document.getElementById('q-to').textContent      = q.to;
+        document.getElementById('chip-from').textContent = q.from;
+        document.getElementById('chip-to').textContent   = q.to;
+
+        const fb = document.getElementById('feedback');
+        fb.textContent = ''; fb.className = 'feedback';
+
+        const grid = document.getElementById('answers-grid');
+        grid.innerHTML = '';
+        q.answers.forEach(iv => {
+            const btn = document.createElement('button');
+            btn.className = 'answer-btn';
+            btn.textContent = iv.name;
+            btn.addEventListener('click', () => handleAnswer(iv, btn));
+            grid.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(selected, clickedBtn) {
+        if (locked) return;
+        locked = true;
+        const isOk = selected.s === current.correct.s;
+
+        if (isOk) { score.ok++;  streak++; }
+        else       { score.err++; streak = 0; }
+        saveScore(); updateUI();
+
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = true;
+            if      (btn.textContent === current.correct.name)  btn.classList.add('correct');
+            else if (btn === clickedBtn && !isOk)               btn.classList.add('wrong-pick');
+            else                                                btn.classList.add('dim');
+        });
+
+        const fb = document.getElementById('feedback');
+        const pt = current.semitones === 1 ? 'półton' : 'półtony/półtonów';
+        if (isOk) {
+            fb.textContent = `✓ Świetnie! ${current.from} → ${current.to} = ${current.correct.name} (${current.semitones} ${pt})`;
+            fb.className = 'feedback ok';
+        } else {
+            fb.textContent = `✗ Błąd! Prawidłowo: ${current.correct.name} (${current.semitones} ${pt})`;
+            fb.className = 'feedback err';
+        }
+
+        setTimeout(() => showQuestion(generateQuestion()), 2000);
+    }
+
+    function updateUI() {
+        document.getElementById('score-ok').textContent  = score.ok;
+        document.getElementById('score-err').textContent = score.err;
+        document.getElementById('streak-val').textContent = streak;
+        const total = score.ok + score.err;
+        document.getElementById('total-count').textContent = total;
+        if (total > 0) {
+            const pct = Math.round(score.ok / total * 100);
+            document.getElementById('acc-text').textContent = pct + '%';
+            document.getElementById('acc-fill').style.width = pct + '%';
+        } else {
+            document.getElementById('acc-text').textContent = '—';
+            document.getElementById('acc-fill').style.width = '0%';
+        }
+    }
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        if (!confirm('Czy na pewno chcesz zresetować wszystkie wyniki?')) return;
+        score = { ok:0, err:0 }; streak = 0;
+        saveScore(); updateUI();
+    });
+
+    updateUI();
+    showQuestion(generateQuestion());
+</script>
+</body>
+</html>
